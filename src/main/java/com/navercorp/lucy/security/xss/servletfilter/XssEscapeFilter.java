@@ -64,6 +64,10 @@ public final class XssEscapeFilter {
 			return value;
 		}
 
+		if(config.isGlobalDisableURL(url)){
+			return value;
+		}
+
 		XssEscapeFilterRule urlRule = config.getUrlParamRule(url, paramName);
 		if (urlRule == null) {
 			// Default defender 적용
@@ -88,5 +92,9 @@ public final class XssEscapeFilter {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Do not filtered Parameter. Request url: " + url + ", Parameter name: " + paramName + ", Parameter value: " + value);
 		}
+	}
+
+	public boolean isGlobalDisableURL(String url){
+		return config.isGlobalDisableURL(url);
 	}
 }

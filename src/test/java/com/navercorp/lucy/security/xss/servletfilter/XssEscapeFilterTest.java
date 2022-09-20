@@ -88,4 +88,14 @@ public class XssEscapeFilterTest {
 		assertThat(filter.doFilter("/notExist.do", "globalPrefixParameter3", "<b>Text</b>"), is("<b>Text</b>"));
 		assertThat(filter.doFilter("/notExist.do", "globalPrefixParameter3a1", "<b>Text</b>"), is("&lt;b&gt;Text&lt;/b&gt;"));
 	}
+
+	@Test
+	public void testGlobalDisableUrlDoFilter() {
+		assertThat(filter.doFilter("/globalDisableUrl1.do", "text", "<b>Text</b>"), is("&lt;b&gt;Text&lt;/b&gt;"));
+		assertThat(filter.doFilter("/globalDisableUrls/1.do", "text", "<b>Text</b>"), is("<b>Text</b>"));
+		assertThat(filter.doFilter("/globalDisableUrls/2.do", "text", "<b>Text</b>"), is("<b>Text</b>"));
+		assertThat(filter.doFilter("/globalDisableUrl2.do", "hello", "안녕"), is("안녕"));
+		assertThat(filter.doFilter("/globalDisableUrl3.do", "hello", "안녕"), is("안녕"));
+
+	}
 }

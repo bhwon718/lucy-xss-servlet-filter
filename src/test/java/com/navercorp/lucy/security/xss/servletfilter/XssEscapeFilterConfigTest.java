@@ -110,4 +110,15 @@ public class XssEscapeFilterConfigTest {
 		assertThat(config.getUrlParamRule("/disableUrl4.do", "prefix5").isUseDefender(), is(true));
 		assertThat(config.getUrlParamRule("/disableUrl4.do", "prefix6aaaa").getDefender(), instanceOf(XssSaxFilterDefender.class));
 	}
+
+	@Test
+	public void testGlobalDisabledUrls() {
+		assertThat(config.getGlobalDisabledUrls().size(), is(3));
+		assertThat(config.isGlobalDisableURL("/globalDisableUrls/1.do"),  is(true));
+		assertThat(config.isGlobalDisableURL("/globalDisableUrls/2.do"),  is(true));
+		assertThat(config.isGlobalDisableURL("/globalDisableUrl1.do"),  is(false));
+		assertThat(config.isGlobalDisableURL("/globalDisableUrl2.do"),  is(true));
+		assertThat(config.isGlobalDisableURL("/globalDisableUrl3.do"),  is(true));
+		assertThat(config.isGlobalDisableURL("/globalDisableUrl4.do"),  is(false));
+	}
 }

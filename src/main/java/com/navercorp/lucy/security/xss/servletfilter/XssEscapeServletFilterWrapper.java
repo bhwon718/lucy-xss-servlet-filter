@@ -102,7 +102,7 @@ public class XssEscapeServletFilterWrapper extends HttpServletRequestWrapper {
 	public ServletInputStream getInputStream() throws IOException {
 
 		try {
-			if(isJson){
+			if(!xssEscapeFilter.isGlobalDisableURL(this.path) && isJson){
 				String inputString = IOUtils.toString(super.getInputStream(), getCharacterEncoding());
 				HashMap<String, Object> map = mapper.readValue(inputString, typeRef);
 

@@ -46,6 +46,13 @@
             <param name="globalPrefixParameter2" usePrefix="true" />
             <param name="globalPrefixParameter3" usePrefix="false" useDefender="false" />
         </params>
+
+        <!-- 해당 URL 필터링 하지 않는다 -->
+        <disableUrls>
+            <url usePrefix="true">/globalDisableUrls</url><!--globalDisableUrls로 시작하는 URL은 필터링 하지 않는다 -->
+            <url>/globalDisableUrl2.do</url>
+            <url>/globalDisableUrl3.do</url>
+        </disableUrls>
     </global>
 
     <!-- url 별 필터링 룰 선언 -->

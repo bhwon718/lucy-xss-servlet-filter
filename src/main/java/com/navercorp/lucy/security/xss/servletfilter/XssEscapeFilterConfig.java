@@ -26,10 +26,8 @@ import org.w3c.dom.NodeList;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.InputStream;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Set;
 
 /**
  * @author todtod80
@@ -45,6 +43,7 @@ public class XssEscapeFilterConfig {
 	private Map<String, XssEscapeFilterRule> globalParamRuleMap = new HashMap<String, XssEscapeFilterRule>();
 	private Map<String, Defender> defenderMap = new HashMap<String, Defender>();
 	private Defender defaultDefender = null;
+	private Map<String,XssEscapeFilterRule> globalDisabledUrls  = new HashMap<String, XssEscapeFilterRule>();
 
 	/**
 	 * Default Constructor
@@ -74,6 +73,9 @@ public class XssEscapeFilterConfig {
 
 			// globalParam 설정
 			addGlobalParams(rootElement);
+
+			// globalDisabledUrls 설정
+			addGlobalDisabledUrls(rootElement);
 
 			// urlRule 설정
 			addUrlRuleSet(rootElement);
@@ -448,5 +450,55 @@ public class XssEscapeFilterConfig {
 	 */
 	public Defender getDefaultDefender() {
 		return defaultDefender;
+	}
+
+	/**
+	 * @param rootElement Element
+	 * @return void
+	 */
+	private void addGlobalDisabledUrls(Element rootElement) {
+		NodeList nodeList = rootElement.getElementsByTagName("global");
+		if (nodeList.getLength() > 0) {
+
+			Element element = (Element)nodeList.item(0);
+			nodeList = element.getElementsByTagName("disableUrls");
+
+			if (nodeList.getLength() > 0) {
+				element = (Element) nodeList.item(0);
+				nodeList = element.getElementsByTagName("url");
+
+				for (int i = 0; nodeList.getLength() > 0 && i < nodeList.getLength(); i++) {
+					Element eachElement = (Element)nodeList.item(i);
+
+					String name = eachElement.getTextContent();
+					boolean usePrefix = StringUtils.equalsIgnoreCase(eachElement.getAttribute("usePrefix"), "true") ? true : false;
+
+					XssEscapeFilterRule rule = new XssEscapeFilterRule();
+					rule.setName(name);
+					rule.setUsePrefix(usePrefix);
+					globalDisabledUrls.put(name, rule);
+				}
+			}
+		}
+	}
+
+	public Map<String,XssEscapeFilterRule> getGlobalDisabledUrls() {
+		return globalDisabledUrls;
+	}
+
+	public boolean isGlobalDisableURL(String url){
+		if(!globalDisabledUrls.isEmpty()){
+			if(globalDisabledUrls.get(url)!=null){
+				return true;
+			}
+
+			Set<Entry<String, XssEscapeFilterRule>> entries = globalDisabledUrls.entrySet();
+			for (Entry<String, XssEscapeFilterRule> entry : entries) {
+				if ((entry.getValue().isUsePrefix() && url.startsWith(entry.getKey()))) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 }
