@@ -16,9 +16,11 @@
 
 package com.navercorp.lucy.security.xss.servletfilter;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonParseException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import javax.servlet.ServletInputStream;
 import javax.servlet.ServletRequest;
@@ -35,15 +37,16 @@ import java.util.Set;
  * @author leeplay
  */
 public class XssEscapeServletFilterWrapper extends HttpServletRequestWrapper {
+	private static final Log LOG = LogFactory.getLog(XssEscapeServletFilterWrapper.class);
 	private XssEscapeFilter xssEscapeFilter;
 	private String path;
-	private Gson gson = new Gson();
-	private boolean isMultipart;
+	private ObjectMapper mapper = new ObjectMapper();
+	private TypeReference<HashMap<String, Object>> typeRef = new TypeReference<HashMap<String, Object>>() {};
+	private boolean isJson;
 
 	public XssEscapeServletFilterWrapper(ServletRequest request, XssEscapeFilter xssEscapeFilter) {
 		super((HttpServletRequest)request);
-
-		isMultipart = isMultipartContent((HttpServletRequest)request);
+		isJson = isJsonContent((HttpServletRequest)request);
 
 		this.xssEscapeFilter = xssEscapeFilter;
 
@@ -96,14 +99,13 @@ public class XssEscapeServletFilterWrapper extends HttpServletRequestWrapper {
 	 * @return
 	 */
 	@Override
-	public ServletInputStream getInputStream() {
+	public ServletInputStream getInputStream() throws IOException {
 
-			try {
-				if(isMultipart){
-					return super.getInputStream();
-				}
+		try {
+			if(isJson){
 				String inputString = IOUtils.toString(super.getInputStream(), getCharacterEncoding());
-				Map<String, Object> map = gson.fromJson(inputString, Map.class);
+				HashMap<String, Object> map = mapper.readValue(inputString, typeRef);
+
 				Set<String> keys = map.keySet();
 				for(String key : keys) {
 					Object value = map.get(key);
@@ -111,17 +113,14 @@ public class XssEscapeServletFilterWrapper extends HttpServletRequestWrapper {
 						map.put(key, doFilter(key, (String)map.get(key)));
 					}
 				}
-				String result = gson.toJson(map);
+				String result = mapper.writeValueAsString(map);
 
 				return new XssFilteredServletInputStream(new ByteArrayInputStream(result.getBytes(getCharacterEncoding())));
-			} catch(IOException ioe) {
-				// error handling
-				ioe.printStackTrace();
-			} catch(JsonParseException jpe) {
-				// error handling
-				jpe.printStackTrace();
 			}
-		return getInputStream();
+		} catch(IOException ioe) {
+			LOG.error(ioe.getMessage(),ioe);
+		}
+		return super.getInputStream();
 	}
 
 	public class XssFilteredServletInputStream extends ServletInputStream {
@@ -147,6 +146,18 @@ public class XssEscapeServletFilterWrapper extends HttpServletRequestWrapper {
 		}
 		return false;
 	}
+
+	public boolean isJsonContent(HttpServletRequest request) {
+		String contentType = request.getContentType();
+		if(contentType == null) {
+			return false;
+		}
+		if(contentType.toLowerCase().startsWith("application/json")) {
+			return true;
+		}
+		return false;
+	}
+
 
 	/**
 	 * @param paramName String
