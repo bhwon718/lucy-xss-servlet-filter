@@ -16,8 +16,10 @@
 
 package com.navercorp.lucy.security.xss.servletfilter;
 
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.*;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -28,9 +30,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * @author todtod80
@@ -41,7 +41,6 @@ public class XssEscapeServletFilterWrapper extends HttpServletRequestWrapper {
 	private XssEscapeFilter xssEscapeFilter;
 	private String path;
 	private ObjectMapper mapper = new ObjectMapper();
-	private TypeReference<HashMap<String, Object>> typeRef = new TypeReference<HashMap<String, Object>>() {};
 	private boolean isJson;
 
 	public XssEscapeServletFilterWrapper(ServletRequest request, XssEscapeFilter xssEscapeFilter) {
@@ -104,23 +103,52 @@ public class XssEscapeServletFilterWrapper extends HttpServletRequestWrapper {
 		try {
 			if(!xssEscapeFilter.isGlobalDisableURL(this.path) && isJson){
 				String inputString = IOUtils.toString(super.getInputStream(), getCharacterEncoding());
-				HashMap<String, Object> map = mapper.readValue(inputString, typeRef);
-
-				Set<String> keys = map.keySet();
-				for(String key : keys) {
-					Object value = map.get(key);
-					if(value instanceof String) {
-						map.put(key, doFilter(key, (String)map.get(key)));
-					}
-				}
-				String result = mapper.writeValueAsString(map);
-
-				return new XssFilteredServletInputStream(new ByteArrayInputStream(result.getBytes(getCharacterEncoding())));
+				String outputString = filterJson(inputString);
+				return new XssFilteredServletInputStream(new ByteArrayInputStream(outputString.getBytes(getCharacterEncoding())));
 			}
 		} catch(IOException ioe) {
 			LOG.error(ioe.getMessage(),ioe);
 		}
 		return super.getInputStream();
+	}
+
+	public String filterJson(String input) throws JsonProcessingException {
+		if(LOG.isDebugEnabled()) {
+			LOG.debug("input :: " + input.toString());
+		}
+		mapper = new ObjectMapper();
+		JsonNode jsonNode = mapper.readTree(input);
+		return mapper.writeValueAsString(filterJsonNode(jsonNode));
+
+	}
+
+	private JsonNode filterJsonNode(JsonNode jsonNode){
+		if(LOG.isDebugEnabled()) {
+			LOG.debug("jsonNode.toPrettyString() :: " + jsonNode.toPrettyString());
+		}
+		if (jsonNode.isObject()) {
+			Iterator<Map.Entry<String, JsonNode>> fields = jsonNode.fields();
+			fields.forEachRemaining(field -> {
+				if(LOG.isDebugEnabled()) {
+					LOG.debug("field.getValue() instanceof : " + field.getValue().getClass().getName());
+					LOG.debug("field.getKey() :: " + field.getKey());
+					LOG.debug("field.getValue() :: " + field.getValue());
+				}
+				if(field.getValue().isObject() || field.getValue().isArray()){
+					filterJsonNode(field.getValue());
+				}else if(field.getValue()!=null && field.getValue() instanceof TextNode){
+					String key = field.getKey();
+					String value = field.getValue().textValue();
+					field.setValue(new TextNode(doFilter(key, value)));
+				}
+			});
+		} else if (jsonNode.isArray()) {
+			ArrayNode arrayField = (ArrayNode) jsonNode;
+			arrayField.forEach(node -> {
+				filterJsonNode(node);
+			});
+		}
+		return jsonNode;
 	}
 
 	public class XssFilteredServletInputStream extends ServletInputStream {
@@ -165,6 +193,6 @@ public class XssEscapeServletFilterWrapper extends HttpServletRequestWrapper {
 	 * @return String
 	 */
 	private String doFilter(String paramName, String value) {
-		return xssEscapeFilter.doFilter(path, paramName, value);
+		return xssEscapeFilter.doFilter(this.path, paramName, value);
 	}
 }

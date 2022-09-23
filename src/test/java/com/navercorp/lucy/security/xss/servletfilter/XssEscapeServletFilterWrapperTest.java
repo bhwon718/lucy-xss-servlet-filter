@@ -15,6 +15,7 @@
  */
 package com.navercorp.lucy.security.xss.servletfilter;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.junit.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 
@@ -171,5 +172,21 @@ public class XssEscapeServletFilterWrapperTest {
 		assertThat(wrapper.getParameter("title"), is("&lt;b&gt;Text&lt;/b&gt;"));
 		assertThat(wrapper.getParameter("mode"), is("&lt;script&gt;Text&lt;/script&gt;"));
 		assertThat(wrapper.getParameter("globalParameter"), is("&lt;script&gt;Text&lt;/script&gt;"));
+	}
+
+	@Test
+	public void testJson() throws JsonProcessingException {
+		request = new MockHttpServletRequest("GET", "/test/notExistUrl.do");
+		wrapper = new XssEscapeServletFilterWrapper(request, filter);
+		String inputString  = "";
+		String outString = "";
+
+		inputString = "[{\"title1\":\"<b>Text</b>\",\"title2\":\"<b>Text</b>\"},{\"title1\":\"<b>Text</b>\",\"title2\":\"<b>Text</b>\"}]";
+		outString = "[{\"title1\":\"&lt;b&gt;Text&lt;/b&gt;\",\"title2\":\"&lt;b&gt;Text&lt;/b&gt;\"},{\"title1\":\"&lt;b&gt;Text&lt;/b&gt;\",\"title2\":\"&lt;b&gt;Text&lt;/b&gt;\"}]";
+		assertThat(wrapper.filterJson(inputString),is(outString));
+
+		inputString = "{\"title1\":\"<b>Text</b>\",\"title2\":\"<b>Text</b>\",\"list\":[{\"title1\":\"<b>Text</b>\",\"title2\":\"<b>Text</b>\"},{\"title1\":\"<b>Text</b>\",\"title2\":\"<b>Text</b>\"}]}";
+		outString = "{\"title1\":\"&lt;b&gt;Text&lt;/b&gt;\",\"title2\":\"&lt;b&gt;Text&lt;/b&gt;\",\"list\":[{\"title1\":\"&lt;b&gt;Text&lt;/b&gt;\",\"title2\":\"&lt;b&gt;Text&lt;/b&gt;\"},{\"title1\":\"&lt;b&gt;Text&lt;/b&gt;\",\"title2\":\"&lt;b&gt;Text&lt;/b&gt;\"}]}";
+		assertThat(wrapper.filterJson(inputString),is(outString));
 	}
 }
